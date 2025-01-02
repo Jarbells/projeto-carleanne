@@ -1,11 +1,16 @@
 package view;
 
+import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.util.HashMap;
 import java.util.Map;
 
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -108,24 +113,113 @@ public class InventoryManagementApp {
     }
 
     private static void showSellProductDialog(JFrame parentFrame) {
-        JTextField productIdField = new JTextField();
-        JTextField quantityField = new JTextField();
-        JTextField customerField = new JTextField();
+        JPanel mainPanel = new JPanel(new BorderLayout());
 
-        Object[] message = {
-            "Product ID:", productIdField,
-            "Quantity:", quantityField,
-            "Customer Name (Optional):", customerField
-        };
+        JPanel productPanelContainer = new JPanel();
+        productPanelContainer.setLayout(new BoxLayout(productPanelContainer, BoxLayout.Y_AXIS));
 
-        int option = JOptionPane.showConfirmDialog(parentFrame, message, "Sell Product", JOptionPane.OK_CANCEL_OPTION);
-        if (option == JOptionPane.OK_OPTION) {
-            int productId = Integer.parseInt(productIdField.getText());
-            int quantity = Integer.parseInt(quantityField.getText());
-            String customerName = customerField.getText();
+        Map<String, ProductSummary> summary = inventory.getProductSummary();
+        Map<ProductSummary, Integer> selectedProducts = new HashMap<>();
+        JLabel totalLabel = new JLabel("Total da compra: R$ 0.00");
 
-            inventory.sellProduct(productId, quantity, customerName.isEmpty() ? null : customerName);
-            JOptionPane.showMessageDialog(parentFrame, "Product sold successfully!");
+        for (ProductSummary productSummary : summary.values()) {
+            JPanel productPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+            JLabel productLabel = new JLabel(
+                    "Produto: " + productSummary.getName() + " | Quantidade disponível: " + productSummary.getQuantity() + " | Preço: R$ " + productSummary.getPrice()
+            );
+
+            JButton addButton = new JButton("+");
+            JButton removeButton = new JButton("-");
+
+            JLabel selectedQuantityLabel = new JLabel("Selecionado: 0");
+            selectedProducts.put(productSummary, 0);
+
+            addButton.addActionListener(e -> {
+                int selectedQuantity = selectedProducts.get(productSummary);
+                if (selectedQuantity < productSummary.getQuantity()) {
+                    selectedQuantity++;
+                    selectedProducts.put(productSummary, selectedQuantity);
+                    selectedQuantityLabel.setText("Selecionado: " + selectedQuantity);
+                    productLabel.setText(
+                            "Produto: " + productSummary.getName() + " | Quantidade disponível: " + (productSummary.getQuantity() - selectedQuantity) + " | Preço: R$ " + productSummary.getPrice()
+                    );
+                    updateTotalLabel(selectedProducts, totalLabel);
+                } else {
+                    JOptionPane.showMessageDialog(parentFrame, "Não há mais produtos disponíveis!", "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+
+            removeButton.addActionListener(e -> {
+                int selectedQuantity = selectedProducts.get(productSummary);
+                if (selectedQuantity > 0) {
+                    selectedQuantity--;
+                    selectedProducts.put(productSummary, selectedQuantity);
+                    selectedQuantityLabel.setText("Selecionado: " + selectedQuantity);
+                    productLabel.setText(
+                            "Produto: " + productSummary.getName() + " | Quantidade disponível: " + (productSummary.getQuantity() - selectedQuantity) + " | Preço: R$ " + productSummary.getPrice()
+                    );
+                    updateTotalLabel(selectedProducts, totalLabel);
+                }
+            });
+
+            productPanel.add(productLabel);
+            productPanel.add(addButton);
+            productPanel.add(removeButton);
+            productPanel.add(selectedQuantityLabel);
+
+            productPanelContainer.add(productPanel);
+        }
+
+        JScrollPane scrollPane = new JScrollPane(productPanelContainer);
+        scrollPane.setPreferredSize(new Dimension(600, 400));
+
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footerPanel.add(totalLabel);
+
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        int result = JOptionPane.showConfirmDialog(parentFrame, mainPanel, "Sell Products", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            double totalPrice = 0;
+            for (Map.Entry<ProductSummary, Integer> entry : selectedProducts.entrySet()) {
+                ProductSummary productSummary = entry.getKey();
+                int selectedQuantity = entry.getValue();
+
+                if (selectedQuantity > 0) {
+                    inventory.sellProduct(productSummary.getName().hashCode(), selectedQuantity, null);
+                    totalPrice += selectedQuantity * productSummary.getPrice();
+                }
+            }
+
+            JTextField customerField = new JTextField();
+            Object[] message = {
+                "Total da compra: R$ " + String.format("%.2f", totalPrice),
+                "Nome do cliente (opcional):", customerField
+            };
+
+            int confirm = JOptionPane.showConfirmDialog(parentFrame, message, "Finalizar Compra", JOptionPane.OK_CANCEL_OPTION);
+
+            if (confirm == JOptionPane.OK_OPTION) {
+                String customerName = customerField.getText();
+                if (customerName.isEmpty()) {
+                    customerName = null;
+                }
+                JOptionPane.showMessageDialog(parentFrame, "Compra finalizada com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+            }
         }
     }
+
+    private static void updateTotalLabel(Map<ProductSummary, Integer> selectedProducts, JLabel totalLabel) {
+        double totalPrice = 0;
+        for (Map.Entry<ProductSummary, Integer> entry : selectedProducts.entrySet()) {
+            ProductSummary productSummary = entry.getKey();
+            int selectedQuantity = entry.getValue();
+            totalPrice += selectedQuantity * productSummary.getPrice();
+        }
+        totalLabel.setText("Total da compra: R$ " + String.format("%.2f", totalPrice));
+    }
+
 }

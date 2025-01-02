@@ -17,6 +17,10 @@ public class ProductSummary {
         this.quantity++;
     }
 
+    public void decrementQuantity() {
+        this.quantity--;
+    }
+
     public String getName() {
         return name;
     }
