@@ -13,14 +13,6 @@ public class ProductSummary {
         this.quantity = quantity;
     }
 
-    public void incrementQuantity() {
-        this.quantity++;
-    }
-
-    public void decrementQuantity() {
-        this.quantity--;
-    }
-
     public String getName() {
         return name;
     }
@@ -37,7 +29,10 @@ public class ProductSummary {
         return quantity;
     }
 
-    public double getTotalValue() {
-        return quantity * price;
+    public void decrementQuantity(int amount) {
+        if (amount > quantity) {
+            throw new IllegalArgumentException("Quantidade insuficiente no estoque.");
+        }
+        quantity -= amount;
     }
 }

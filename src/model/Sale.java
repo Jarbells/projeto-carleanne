@@ -6,11 +6,13 @@ public class Sale {
     private final Product product;
     private final String customerName;
     private final LocalDateTime dateTime;
+    private final String transactionId;
 
-    public Sale(Product product, String customerName) {
+    public Sale(Product product, String customerName, LocalDateTime dateTime, String transactionId) {
         this.product = product;
         this.customerName = customerName;
-        this.dateTime = LocalDateTime.now();
+        this.dateTime = dateTime;
+        this.transactionId = transactionId;
     }
 
     public Product getProduct() {
@@ -25,8 +27,7 @@ public class Sale {
         return dateTime;
     }
 
-    @Override
-    public String toString() {
-        return "Product: " + product + ", Customer: " + (customerName == null ? "Anonymous" : customerName) + ", Date: " + dateTime;
+    public String getTransactionId() {
+        return transactionId;
     }
 }
