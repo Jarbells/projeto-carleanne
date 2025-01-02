@@ -35,9 +35,9 @@ public class InventoryManagementApp {
 
         JPanel panel = new JPanel(new GridLayout(3, 1));
 
-        JButton addProductButton = new JButton("Add Product");
-        JButton viewInventoryButton = new JButton("View Inventory");
-        JButton sellProductButton = new JButton("Sell Product");
+        JButton addProductButton = new JButton("Adicionar Produtos");
+        JButton viewInventoryButton = new JButton("Ver Estoque");
+        JButton sellProductButton = new JButton("Vender");
 
         panel.add(addProductButton);
         panel.add(viewInventoryButton);
@@ -59,26 +59,47 @@ public class InventoryManagementApp {
         JTextField quantityField = new JTextField();
 
         Object[] message = {
-            "Name:", nameField,
-            "Description:", descriptionField,
-            "Price:", priceField,
-            "Quantity:", quantityField
+            "Nome:", nameField,
+            "Descrição:", descriptionField,
+            "Preço:", priceField,
+            "Quantidade:", quantityField
         };
 
-        int option = JOptionPane.showConfirmDialog(parentFrame, message, "Add Product", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(parentFrame, message, "Adicionar Produto", JOptionPane.OK_CANCEL_OPTION);
         if (option == JOptionPane.OK_OPTION) {
-            String name = nameField.getText();
-            String description = descriptionField.getText();
-            double price = Double.parseDouble(priceField.getText());
-            int quantity = Integer.parseInt(quantityField.getText());
+            try {
+                String name = nameField.getText();
+                String description = descriptionField.getText();
 
-            inventory.addProduct(name, description, price, quantity);
-            JOptionPane.showMessageDialog(parentFrame, "Product added successfully!");
+                if (name.isEmpty() || description.isEmpty()) {
+                    throw new IllegalArgumentException("Nome e Descrição não podem estar vazios.");
+                }
 
-            int nextAction = JOptionPane.showOptionDialog(parentFrame, "Do you want to continue adding products?", "Continue or Cancel", 
-                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[]{"Continue", "Cancel"}, "Continue");
+                double price = Double.parseDouble(priceField.getText());
+                if (price <= 0) {
+                    throw new IllegalArgumentException("O preço deve ser maior que 0.");
+                }
 
-            if (nextAction == JOptionPane.YES_OPTION) {
+                int quantity = Integer.parseInt(quantityField.getText());
+                if (quantity <= 0) {
+                    throw new IllegalArgumentException("A quantidade deve ser maior que 0.");
+                }
+
+                inventory.addProduct(name, description, price, quantity);
+                JOptionPane.showMessageDialog(parentFrame, "Produto adicionado com sucesso!");
+
+                int nextAction = JOptionPane.showOptionDialog(parentFrame, "Deseja continuar adicionando produtos?", "Continuar ou Cancelar", 
+                        JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[]{"Continuar", "Cancelar"}, "Continuar");
+
+                if (nextAction == JOptionPane.YES_OPTION) {
+                    showAddProductDialog(parentFrame);
+                }
+
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(parentFrame, "O preço e a quantidade devem ser números válidos.", "Erro de Entrada", JOptionPane.ERROR_MESSAGE);
+                showAddProductDialog(parentFrame);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(parentFrame, ex.getMessage(), "Erro de Entrada", JOptionPane.ERROR_MESSAGE);
                 showAddProductDialog(parentFrame);
             }
         }
