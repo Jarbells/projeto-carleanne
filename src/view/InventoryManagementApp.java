@@ -1,5 +1,6 @@
 package view;
 
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.util.Map;
 
@@ -7,6 +8,8 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -96,7 +99,12 @@ public class InventoryManagementApp {
                 .append("Total em mercadorias R$: ").append(String.format("%.2f", totalValue)).append("\n")
                 .append("-----------------------------------");
 
-        JOptionPane.showMessageDialog(parentFrame, inventoryDisplay.toString());
+        JTextArea textArea = new JTextArea(inventoryDisplay.toString());
+        textArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(500, 400));
+
+        JOptionPane.showMessageDialog(parentFrame, scrollPane, "Inventory", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private static void showSellProductDialog(JFrame parentFrame) {
