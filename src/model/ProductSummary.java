@@ -1,7 +1,11 @@
 package model;
 
-public class ProductSummary {
-    private final String name;
+import java.io.Serializable;
+
+public class ProductSummary implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+	private final String name;
     private final String description;
     private final double price;
     private int quantity;

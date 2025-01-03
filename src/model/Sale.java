@@ -1,9 +1,12 @@
 package model;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class Sale {
-    private final Product product;
+public class Sale implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+	private final Product product;
     private final String customerName;
     private final LocalDateTime dateTime;
     private final String transactionId;

@@ -1,15 +1,22 @@
 package service;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import model.Product;
 import model.ProductSummary;
 import model.Sale;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+public class Inventory implements Serializable {
 
-public class Inventory {
-    private final List<Product> products = new ArrayList<>();
+	private static final long serialVersionUID = 1L;
+	private final List<Product> products = new ArrayList<>();
     private final List<Sale> sales = new ArrayList<>();
     private final Map<String, ProductSummary> productSummaries = new HashMap<>();
 
@@ -25,8 +32,12 @@ public class Inventory {
     }
 
     public Map<String, ProductSummary> getProductSummary() {
-        return productSummaries;
+        // Filtra os produtos com quantidade maior que 0
+        return productSummaries.entrySet().stream()
+            .filter(entry -> entry.getValue().getQuantity() > 0)
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
     }
+
 
     public void sellProducts(List<ProductSummary> productSummaries, List<Integer> quantities, String customerName) {
         if (productSummaries.size() != quantities.size()) {
