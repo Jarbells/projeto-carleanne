@@ -1,7 +1,6 @@
 package view;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -12,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -30,7 +30,9 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
 import model.ProductSummary;
@@ -144,6 +146,9 @@ public class InventoryManagementApp {
         viewInventoryButton.addActionListener(e -> showInventoryDialog(frame));
         sellProductButton.addActionListener(e -> showSellProductDialog(frame));
         viewSalesButton.addActionListener(e -> showSalesDialog(frame));
+        
+        // Adiciona o botão para consultar vendas por período
+        addConsultarVendasPorPeriodoButton(frame);
 
         frame.setVisible(true);
     }
@@ -152,24 +157,20 @@ public class InventoryManagementApp {
     
 
     private static void showAddProductDialog(JFrame parentFrame) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20); // Fonte com tamanho 20
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
 
-        // Criação de um JFrame para total controle da janela
         JFrame dialog = new JFrame("Adicionar Produto");
-        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Permite fechar
-        dialog.setSize(600, 400); // Tamanho inicial
-        dialog.setResizable(true); // Torna a janela redimensionável
+        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        dialog.setSize(600, 400);
+        dialog.setResizable(true);
 
-        // Define a cor de fundo
-        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45); // RGB: (138, 106, 45)
+        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
         dialog.getContentPane().setBackground(backgroundColor);
 
-        // Painel principal
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBackground(backgroundColor);
 
-        // Campos e rótulos
         JTextField nameField = new JTextField();
         nameField.setFont(fonteGrande);
 
@@ -198,7 +199,6 @@ public class InventoryManagementApp {
         quantityLabel.setFont(fonteGrande);
         quantityLabel.setForeground(java.awt.Color.WHITE);
 
-        // Adiciona os componentes ao painel principal
         mainPanel.add(nameLabel);
         mainPanel.add(nameField);
         mainPanel.add(descriptionLabel);
@@ -208,13 +208,11 @@ public class InventoryManagementApp {
         mainPanel.add(quantityLabel);
         mainPanel.add(quantityField);
 
-        // Adiciona barras de rolagem
         JScrollPane scrollPane = new JScrollPane(mainPanel);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getViewport().setBackground(backgroundColor);
 
-        // Painel para botões
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(backgroundColor);
 
@@ -227,22 +225,23 @@ public class InventoryManagementApp {
         buttonPanel.add(okButton);
         buttonPanel.add(cancelButton);
 
-        // Adiciona os componentes ao JFrame
         dialog.setLayout(new BorderLayout());
         dialog.add(scrollPane, BorderLayout.CENTER);
         dialog.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Ação do botão OK
         okButton.addActionListener(e -> {
             try {
                 String name = nameField.getText();
                 String description = descriptionField.getText();
-                double price = Double.parseDouble(priceField.getText());
+                
+                // Ajusta o preço para aceitar `,` ou `.` como separador decimal
+                String priceText = priceField.getText().replace(",", ".");
+                double price = Double.parseDouble(priceText);
+
                 int quantity = Integer.parseInt(quantityField.getText());
                 inventory.addProduct(name, description, price, quantity);
                 saveInventory();
 
-                // Mensagem de sucesso ampliada
                 JOptionPane.showMessageDialog(
                     dialog, 
                     new JLabel("<html><body style='font-size:18px;'>Produto adicionado com sucesso!</body></html>"),
@@ -250,9 +249,8 @@ public class InventoryManagementApp {
                     JOptionPane.INFORMATION_MESSAGE
                 );
 
-                dialog.dispose(); // Fecha o diálogo
+                dialog.dispose();
 
-                // Perguntar se deseja cadastrar outro produto
                 int continueOption = JOptionPane.showOptionDialog(
                     parentFrame,
                     new JLabel("<html><body style='font-size:18px;'>Deseja adicionar outro produto?</body></html>"),
@@ -265,10 +263,9 @@ public class InventoryManagementApp {
                 );
 
                 if (continueOption == JOptionPane.OK_OPTION) {
-                    showAddProductDialog(parentFrame); // Reabre a janela de cadastro
+                    showAddProductDialog(parentFrame);
                 }
             } catch (NumberFormatException ex) {
-                // Mensagem de erro ampliada
                 JOptionPane.showMessageDialog(
                     dialog,
                     new JLabel("<html><body style='font-size:18px;'>Por favor, insira valores válidos.</body></html>"),
@@ -278,12 +275,11 @@ public class InventoryManagementApp {
             }
         });
 
-        // Ação do botão Cancelar
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        // Torna a janela visível
         dialog.setVisible(true);
     }
+
 
 
     
@@ -556,14 +552,14 @@ public class InventoryManagementApp {
     
     
     private static void showSalesDialog(JFrame parentFrame) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20); // Fonte para o texto
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
 
         // Define a cor de fundo
-        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45); // RGB: (138, 106, 45)
+        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
 
-        JPanel salesPanel = new JPanel();
-        salesPanel.setLayout(new BoxLayout(salesPanel, BoxLayout.Y_AXIS));
-        salesPanel.setBackground(backgroundColor);
+        // Colunas e dados da tabela
+        String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
+        List<Object[]> linhas = new ArrayList<>();
 
         Map<String, List<Sale>> salesTransactions = inventory.getSalesTransactions();
 
@@ -573,7 +569,7 @@ public class InventoryManagementApp {
             .sorted((entry1, entry2) -> {
                 LocalDateTime date1 = entry1.getValue().get(0).getDateTime();
                 LocalDateTime date2 = entry2.getValue().get(0).getDateTime();
-                return date2.compareTo(date1); // Ordena do mais recente para o mais antigo
+                return date2.compareTo(date1);
             })
             .toList();
 
@@ -582,20 +578,16 @@ public class InventoryManagementApp {
             Sale firstSale = sales.get(0);
 
             String customerName = firstSale.getCustomerName();
+            if (customerName == null || customerName.isEmpty()) {
+                customerName = "Cliente não registrado";
+            }
+
             String formattedDate = firstSale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
 
-            // Cabeçalho da transação
-            salesPanel.add(createStyledLabel("--------------------------------------------------------------------", fonteGrande, backgroundColor));
-            salesPanel.add(createStyledLabel("Data: " + formattedDate, fonteGrande, backgroundColor));
-            salesPanel.add(createStyledLabel("Cliente: " + (customerName != null ? customerName : "Não informado"), fonteGrande, backgroundColor));
-            salesPanel.add(createStyledLabel("Produto(s):", fonteGrande, backgroundColor));
-
-            // Detalhes dos produtos
             Map<String, Integer> productSummary = sales.stream()
                 .collect(Collectors.groupingBy(sale -> sale.getProduct().getName(), Collectors.summingInt(sale -> 1)));
 
-            double total = 0.0;
-
+            boolean firstRow = true;
             for (Map.Entry<String, Integer> productEntry : productSummary.entrySet()) {
                 String productName = productEntry.getKey();
                 int quantity = productEntry.getValue();
@@ -606,50 +598,200 @@ public class InventoryManagementApp {
                     .getProduct()
                     .getPrice();
 
-                total += quantity * unitPrice;
+                double total = quantity * unitPrice;
 
-                salesPanel.add(createStyledLabel(
-                    quantity + " x " + productName + "  |  Valor Unitário: R$ " + String.format("%.2f", unitPrice),
-                    fonteGrande, backgroundColor
-                ));
+                if (firstRow) {
+                    linhas.add(new Object[]{formattedDate, customerName, productName, quantity, String.format("%.2f", unitPrice), String.format("%.2f", total)});
+                    firstRow = false;
+                } else {
+                    linhas.add(new Object[]{"", "", productName, quantity, String.format("%.2f", unitPrice), String.format("%.2f", total)});
+                }
             }
-
-            // Total da compra
-            salesPanel.add(createStyledLabel("Total: R$ " + String.format("%.2f", total), fonteGrande, backgroundColor));
-            salesPanel.add(createStyledLabel("--------------------------------------------------------------------", fonteGrande, backgroundColor));
         }
 
-        JScrollPane scrollPane = new JScrollPane(salesPanel);
-        scrollPane.setPreferredSize(new Dimension(800, 600));
-        scrollPane.getViewport().setBackground(backgroundColor);
+        // Conversão de dados para a JTable
+        Object[][] dados = linhas.toArray(new Object[0][]);
+
+        JTable tabela = new JTable(dados, colunas);
+        tabela.setFont(fonteGrande);
+        tabela.setRowHeight(30);
+        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 22));
+        tabela.getTableHeader().setBackground(backgroundColor);
+        tabela.getTableHeader().setForeground(java.awt.Color.WHITE);
+        tabela.setBackground(backgroundColor);
+        tabela.setForeground(java.awt.Color.WHITE);
+
+        JScrollPane scrollPane = new JScrollPane(tabela);
 
         JDialog dialog = new JDialog(parentFrame, "Histórico de Vendas", true);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        dialog.setSize(900, 700); // Define tamanho inicial maior
-        dialog.setResizable(true); // Permite redimensionar
+        dialog.setSize(900, 600);
+        dialog.setResizable(true);
         dialog.setLayout(new BorderLayout());
         dialog.getContentPane().setBackground(backgroundColor);
         dialog.add(scrollPane, BorderLayout.CENTER);
 
         // Botão "OK" para fechar
         JButton okButton = new JButton("OK");
-        okButton.setFont(fonteGrande); // Fonte maior no botão
+        okButton.setFont(fonteGrande);
+        okButton.addActionListener(e -> dialog.dispose());
         JPanel buttonPanel = new JPanel();
         buttonPanel.setBackground(backgroundColor);
-        okButton.addActionListener(e -> dialog.dispose());
         buttonPanel.add(okButton);
 
         dialog.add(buttonPanel, BorderLayout.SOUTH);
         dialog.setVisible(true);
     }
+    
+    private static void addConsultarVendasPorPeriodoButton(JFrame frame) {
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
 
-    private static JLabel createStyledLabel(String text, Font font, java.awt.Color backgroundColor) {
-        JLabel label = new JLabel(text);
-        label.setFont(font);
-        label.setForeground(java.awt.Color.WHITE);
-        label.setOpaque(true);
-        label.setBackground(backgroundColor);
-        return label;
+        JButton consultarVendasPorPeriodoButton = new JButton("Consultar Vendas Por Período");
+        consultarVendasPorPeriodoButton.setFont(fonteGrande);
+        consultarVendasPorPeriodoButton.addActionListener(e -> showSalesByPeriodDialog(frame));
+
+        JPanel mainPanel = (JPanel) frame.getContentPane().getComponent(0);
+        JPanel buttonPanel = (JPanel) mainPanel.getComponent(1);
+        buttonPanel.add(consultarVendasPorPeriodoButton);
+        buttonPanel.revalidate();
+        buttonPanel.repaint();
     }
+
+    private static void showSalesByPeriodDialog(JFrame parentFrame) {
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
+        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
+
+        JDialog dialog = new JDialog(parentFrame, "Consultar Vendas Por Período", true);
+        dialog.setLayout(new BorderLayout());
+        dialog.setSize(500, 300);
+        dialog.setResizable(false);
+        dialog.getContentPane().setBackground(backgroundColor);
+
+        JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
+        inputPanel.setBackground(backgroundColor);
+
+        JLabel labelStartDate = new JLabel("Data Inicial (dd/mm/yyyy):");
+        labelStartDate.setFont(fonteGrande);
+        labelStartDate.setForeground(java.awt.Color.WHITE);
+        JTextField startDateField = new JTextField();
+        startDateField.setFont(fonteGrande);
+
+        JLabel labelEndDate = new JLabel("Data Final (dd/mm/yyyy):");
+        labelEndDate.setFont(fonteGrande);
+        labelEndDate.setForeground(java.awt.Color.WHITE);
+        JTextField endDateField = new JTextField();
+        endDateField.setFont(fonteGrande);
+
+        inputPanel.add(labelStartDate);
+        inputPanel.add(startDateField);
+        inputPanel.add(labelEndDate);
+        inputPanel.add(endDateField);
+
+        dialog.add(inputPanel, BorderLayout.CENTER);
+
+        JButton consultarButton = new JButton("Consultar");
+        consultarButton.setFont(fonteGrande);
+        consultarButton.addActionListener(e -> {
+            try {
+                LocalDate startDate = LocalDate.parse(startDateField.getText(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                LocalDate endDate = LocalDate.parse(endDateField.getText(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                LocalDate today = LocalDate.now();
+
+                if (startDate.isAfter(endDate)) {
+                    throw new IllegalArgumentException("A data inicial não pode ser maior que a data final.");
+                }
+
+                if (endDate.isAfter(today)) {
+                    throw new IllegalArgumentException("A data final não pode ser maior que a data de hoje.");
+                }
+
+                showFilteredSalesDialog(parentFrame, startDate, endDate);
+                dialog.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setBackground(backgroundColor);
+        buttonPanel.add(consultarButton);
+
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
+    }
+
+    private static void showFilteredSalesDialog(JFrame parentFrame, LocalDate startDate, LocalDate endDate) {
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
+        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
+
+        String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
+        List<Object[]> linhas = new ArrayList<>();
+
+        Map<String, List<Sale>> salesTransactions = inventory.getSalesTransactions();
+        double totalSales = 0.0;
+
+        for (List<Sale> sales : salesTransactions.values()) {
+            String lastCustomerName = null;
+            for (Sale sale : sales) {
+                LocalDate saleDate = sale.getDateTime().toLocalDate();
+                if (!saleDate.isBefore(startDate) && !saleDate.isAfter(endDate)) {
+                    String customerName = sale.getCustomerName();
+                    if (customerName == null || customerName.isEmpty()) {
+                        customerName = "Cliente não registrado";
+                    }
+                    String formattedDate = sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+
+                    double unitPrice = sale.getProduct().getPrice();
+                    double total = unitPrice;
+                    totalSales += total;
+
+                    linhas.add(new Object[]{
+                        formattedDate,
+                        customerName.equals(lastCustomerName) ? "" : customerName,
+                        sale.getProduct().getName(),
+                        1,
+                        String.format("%.2f", unitPrice),
+                        String.format("%.2f", total)
+                    });
+
+                    lastCustomerName = customerName;
+                }
+            }
+        }
+
+        Object[][] dados = linhas.toArray(new Object[0][]);
+
+        JTable tabela = new JTable(dados, colunas);
+        tabela.setFont(fonteGrande);
+        tabela.setRowHeight(30);
+        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 22));
+        tabela.getTableHeader().setBackground(backgroundColor);
+        tabela.getTableHeader().setForeground(java.awt.Color.WHITE);
+        tabela.setBackground(backgroundColor);
+        tabela.setForeground(java.awt.Color.WHITE);
+
+        JScrollPane scrollPane = new JScrollPane(tabela);
+
+        JDialog dialog = new JDialog(parentFrame, "Vendas Por Período", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setSize(900, 600);
+        dialog.setResizable(true);
+        dialog.setLayout(new BorderLayout());
+        dialog.getContentPane().setBackground(backgroundColor);
+        dialog.add(scrollPane, BorderLayout.CENTER);
+
+        JLabel totalLabel = new JLabel("Total de vendas: R$ " + String.format("%.2f", totalSales));
+        totalLabel.setFont(fonteGrande);
+        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        totalLabel.setForeground(java.awt.Color.WHITE);
+
+        dialog.add(totalLabel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
+    }
+
+
+
+
+
 }
 

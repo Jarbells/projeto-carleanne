@@ -5,9 +5,9 @@ import java.io.Serializable;
 public class ProductSummary implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private final String name;
-    private final String description;
-    private final double price;
+	private String name;
+    private String description;
+    private double price;
     private int quantity;
 
     public ProductSummary(String name, String description, double price, int quantity) {
@@ -32,6 +32,24 @@ public class ProductSummary implements Serializable {
     public int getQuantity() {
         return quantity;
     }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+    
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+
 
     public void decrementQuantity(int amount) {
         if (amount > quantity) {
