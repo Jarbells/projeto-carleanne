@@ -474,7 +474,6 @@ public class InventoryManagementApp {
         okButton.setFont(fonteGrande);
         JButton cancelButton = new JButton("Cancelar");
         cancelButton.setFont(fonteGrande);
-
         okButton.addActionListener(e -> {
             double totalPrice = selectedProducts.entrySet().stream()
                 .mapToDouble(entry -> entry.getKey().getPrice() * entry.getValue())
@@ -492,7 +491,13 @@ public class InventoryManagementApp {
                 int confirm = JOptionPane.showConfirmDialog(dialog, message, "Finalizar Compra", JOptionPane.OK_CANCEL_OPTION);
 
                 if (confirm == JOptionPane.OK_OPTION) {
-                    String customerName = customerField.getText();
+                    String customerName = customerField.getText().trim();
+
+                    // Se o nome não for fornecido, usar "Cliente não cadastrado"
+                    if (customerName.isEmpty()) {
+                        customerName = "Cliente não cadastrado";
+                    }
+
                     List<ProductSummary> productsToSell = new ArrayList<>();
                     List<Integer> quantities = new ArrayList<>();
 
@@ -506,7 +511,7 @@ public class InventoryManagementApp {
 
                     // Realiza a venda apenas se houver produtos válidos
                     if (!productsToSell.isEmpty()) {
-                        inventory.sellProducts(productsToSell, quantities, customerName.isEmpty() ? null : customerName);
+                        inventory.sellProducts(productsToSell, quantities, customerName);
                         saveInventory();
 
                         JOptionPane.showMessageDialog(
@@ -714,97 +719,145 @@ public class InventoryManagementApp {
     private static void showEditProductDialog(JFrame parentFrame) {
         Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
 
-        JFrame dialog = new JFrame("Alterar Produtos");
-        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        JDialog dialog = new JDialog(parentFrame, "Alterar Produtos", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         dialog.setSize(800, 600);
         dialog.setResizable(true);
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
-        JComboBox<String> productSelector = new JComboBox<>(
-            inventory.getProductSummary().keySet().toArray(new String[0])
+        JLabel produtoSelecionadoLabel = new JLabel("Selecione o Produto:");
+        produtoSelecionadoLabel.setFont(fonteGrande);
+
+        JComboBox<String> produtosComboBox = new JComboBox<>(
+            inventory.getProductSummary().values().stream()
+                .map(p -> p.getName() + "|" + p.getDescription() + "|" + p.getPrice() + "|" + p.getQuantity() + " disponíveis")
+                .toArray(String[]::new)
         );
-        productSelector.setFont(fonteGrande);
+        produtosComboBox.setFont(fonteGrande);
 
         JTextField nameField = new JTextField();
         nameField.setFont(fonteGrande);
 
-        JTextField descriptionField = new JTextField();
-        descriptionField.setFont(fonteGrande);
+        JTextField descricaoField = new JTextField();
+        descricaoField.setFont(fonteGrande);
 
-        JTextField priceField = new JTextField();
-        priceField.setFont(fonteGrande);
+        JTextField precoField = new JTextField();
+        precoField.setFont(fonteGrande);
 
-        JLabel nameLabel = new JLabel("Novo Nome:");
-        nameLabel.setFont(fonteGrande);
+        JTextField quantidadeField = new JTextField();
+        quantidadeField.setFont(fonteGrande);
 
-        JLabel descriptionLabel = new JLabel("Nova Descrição:");
-        descriptionLabel.setFont(fonteGrande);
-
-        JLabel priceLabel = new JLabel("Novo Preço:");
-        priceLabel.setFont(fonteGrande);
-
-        mainPanel.add(new JLabel("Selecione o Produto:"));
-        mainPanel.add(productSelector);
-        mainPanel.add(nameLabel);
+        mainPanel.add(produtoSelecionadoLabel);
+        mainPanel.add(produtosComboBox);
+        mainPanel.add(new JLabel("Novo Nome:"));
         mainPanel.add(nameField);
-        mainPanel.add(descriptionLabel);
-        mainPanel.add(descriptionField);
-        mainPanel.add(priceLabel);
-        mainPanel.add(priceField);
+        mainPanel.add(new JLabel("Nova Descrição:"));
+        mainPanel.add(descricaoField);
+        mainPanel.add(new JLabel("Novo Preço:"));
+        mainPanel.add(precoField);
+        mainPanel.add(new JLabel("Nova Quantidade:"));
+        mainPanel.add(quantidadeField);
 
+        JScrollPane scrollPane = new JScrollPane(mainPanel);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+
+        JPanel buttonPanel = new JPanel();
         JButton saveButton = new JButton("Salvar Alterações");
         saveButton.setFont(fonteGrande);
 
         JButton cancelButton = new JButton("Cancelar");
         cancelButton.setFont(fonteGrande);
 
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+
         saveButton.addActionListener(e -> {
+            String novoNome = nameField.getText().trim();
+            String novaDescricao = descricaoField.getText().trim();
+            String novoPrecoText = precoField.getText().trim().replace(",", ".");
+            String novaQuantidadeText = quantidadeField.getText().trim();
+
             try {
-                String selectedProductKey = (String) productSelector.getSelectedItem();
-                ProductSummary summary = inventory.getProductSummary().get(selectedProductKey);
+                boolean alterado = false;
 
-                if (summary == null) {
-                    JOptionPane.showMessageDialog(dialog, "Produto não encontrado!", "Erro", JOptionPane.ERROR_MESSAGE);
-                    return;
+                String selecionado = (String) produtosComboBox.getSelectedItem();
+                if (selecionado != null) {
+                    String[] partes = selecionado.split("\\|");
+                    String oldKey = partes[0] + "|" + partes[1] + "|" + partes[2];
+
+                    if (!novoNome.isEmpty() || !novaDescricao.isEmpty() || !novoPrecoText.isEmpty() || !novaQuantidadeText.isEmpty()) {
+                        if (!novoNome.isEmpty()) {
+                            inventory.updateProductAttributes(
+                                oldKey,
+                                novoNome,
+                                partes[1],
+                                Double.parseDouble(partes[2])
+                            );
+                            alterado = true;
+                        }
+                        if (!novaDescricao.isEmpty()) {
+                            inventory.updateProductAttributes(
+                                oldKey,
+                                partes[0],
+                                novaDescricao,
+                                Double.parseDouble(partes[2])
+                            );
+                            alterado = true;
+                        }
+                        if (!novoPrecoText.isEmpty()) {
+                            inventory.updateProductAttributes(
+                                oldKey,
+                                partes[0],
+                                partes[1],
+                                Double.parseDouble(novoPrecoText)
+                            );
+                            alterado = true;
+                        }
+                        if (!novaQuantidadeText.isEmpty()) {
+                            int novaQuantidade = Integer.parseInt(novaQuantidadeText);
+                            int quantidadeAtual = Integer.parseInt(partes[3].replace(" disponíveis", "").trim());
+                            inventory.addProduct(
+                                partes[0],
+                                partes[1],
+                                Double.parseDouble(partes[2]),
+                                novaQuantidade - quantidadeAtual
+                            );
+                            alterado = true;
+                        }
+
+                        if (alterado) {
+                            // Salva as alterações no inventário
+                            saveInventory();
+
+                            JLabel messageLabel = new JLabel("Produto atualizado com sucesso!", JLabel.CENTER);
+                            messageLabel.setFont(new Font("Arial", Font.BOLD, 18));
+
+                            JPanel panel = new JPanel(new BorderLayout());
+                            panel.add(messageLabel, BorderLayout.CENTER);
+
+                            JOptionPane.showMessageDialog(dialog, panel, "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                        }
+                    }
                 }
-
-                String newName = nameField.getText().trim();
-                String newDescription = descriptionField.getText().trim();
-                double newPrice = Double.parseDouble(priceField.getText().trim().replace(",", "."));
-
-                if (newName.isEmpty() || newDescription.isEmpty() || newPrice <= 0) {
-                    JOptionPane.showMessageDialog(dialog, "Preencha todos os campos corretamente!", "Erro", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
-                // Atualiza os atributos do produto
-                inventory.updateProductAttributes(selectedProductKey, newName, newDescription, newPrice);
-
-                JOptionPane.showMessageDialog(dialog, "Produto atualizado com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
-
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Preço inválido!", "Erro", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "Erro ao alterar produto: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(saveButton);
-        buttonPanel.add(cancelButton);
-
-        dialog.add(mainPanel, BorderLayout.CENTER);
+        dialog.add(scrollPane, BorderLayout.CENTER);
         dialog.add(buttonPanel, BorderLayout.SOUTH);
 
         dialog.setVisible(true);
     }
-    
-    
+
+
+
+
     
     
     private static Object[][] prepararDadosParaTabela(List<Sale> sales) {
