@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -115,7 +117,7 @@ public class InventoryManagementApp {
         titleLabel.setForeground(java.awt.Color.WHITE);
 
         // Painel para os botões
-        JPanel buttonPanel = new JPanel(new GridLayout(4, 1, 10, 10)); // Espaçamento entre botões
+        JPanel buttonPanel = new JPanel(new GridLayout(6, 1, 10, 10)); // Espaçamento entre botões
         buttonPanel.setBackground(backgroundColor);
 
         JButton addProductButton = new JButton("Adicionar Produtos");
@@ -130,10 +132,18 @@ public class InventoryManagementApp {
         JButton viewSalesButton = new JButton("Consultar Vendas");
         viewSalesButton.setFont(fonteGrande);
 
+        JButton editProductButton = new JButton("Alterar Produtos");
+        editProductButton.setFont(fonteGrande);
+
+        JButton consultarVendasPorPeriodoButton = new JButton("Consultar Vendas Por Período");
+        consultarVendasPorPeriodoButton.setFont(fonteGrande);
+
         buttonPanel.add(addProductButton);
         buttonPanel.add(viewInventoryButton);
         buttonPanel.add(sellProductButton);
         buttonPanel.add(viewSalesButton);
+        buttonPanel.add(editProductButton); // Adiciona o botão "Alterar Produtos"
+        buttonPanel.add(consultarVendasPorPeriodoButton); // Adiciona o botão "Consultar Vendas Por Período"
 
         // Adiciona o título e os botões ao painel principal
         panel.add(titleLabel, BorderLayout.NORTH); // Adiciona o título no topo
@@ -146,12 +156,13 @@ public class InventoryManagementApp {
         viewInventoryButton.addActionListener(e -> showInventoryDialog(frame));
         sellProductButton.addActionListener(e -> showSellProductDialog(frame));
         viewSalesButton.addActionListener(e -> showSalesDialog(frame));
-        
-        // Adiciona o botão para consultar vendas por período
-        addConsultarVendasPorPeriodoButton(frame);
+        editProductButton.addActionListener(e -> showEditProductDialog(frame)); // Ação para o botão "Alterar Produtos"
+        consultarVendasPorPeriodoButton.addActionListener(e -> showSalesByPeriodInputDialog(frame)); // Ação para o botão "Consultar Vendas Por Período"
 
         frame.setVisible(true);
     }
+
+
 
 
     
@@ -231,47 +242,29 @@ public class InventoryManagementApp {
 
         okButton.addActionListener(e -> {
             try {
-                String name = nameField.getText();
-                String description = descriptionField.getText();
-                
-                // Ajusta o preço para aceitar `,` ou `.` como separador decimal
-                String priceText = priceField.getText().replace(",", ".");
-                double price = Double.parseDouble(priceText);
+                String name = nameField.getText().trim();
+                String description = descriptionField.getText().trim();
+                String priceText = priceField.getText().trim().replace(",", ".");
+                String quantityText = quantityField.getText().trim();
 
-                int quantity = Integer.parseInt(quantityField.getText());
+                if (name.isEmpty() || description.isEmpty() || priceText.isEmpty() || quantityText.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, "Todos os campos devem ser preenchidos.", "Erro", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                double price = Double.parseDouble(priceText);
+                int quantity = Integer.parseInt(quantityText);
+
                 inventory.addProduct(name, description, price, quantity);
                 saveInventory();
 
-                JOptionPane.showMessageDialog(
-                    dialog, 
-                    new JLabel("<html><body style='font-size:18px;'>Produto adicionado com sucesso!</body></html>"),
-                    "Sucesso",
-                    JOptionPane.INFORMATION_MESSAGE
-                );
-
+                JOptionPane.showMessageDialog(dialog, "Produto adicionado com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
                 dialog.dispose();
 
-                int continueOption = JOptionPane.showOptionDialog(
-                    parentFrame,
-                    new JLabel("<html><body style='font-size:18px;'>Deseja adicionar outro produto?</body></html>"),
-                    "Continuar Cadastro",
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    new String[]{"OK", "Cancelar"},
-                    "OK"
-                );
-
-                if (continueOption == JOptionPane.OK_OPTION) {
-                    showAddProductDialog(parentFrame);
-                }
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(
-                    dialog,
-                    new JLabel("<html><body style='font-size:18px;'>Por favor, insira valores válidos.</body></html>"),
-                    "Erro",
-                    JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(dialog, "Por favor, insira valores válidos para preço e quantidade.", "Erro", JOptionPane.ERROR_MESSAGE);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -279,7 +272,6 @@ public class InventoryManagementApp {
 
         dialog.setVisible(true);
     }
-
 
 
     
@@ -343,6 +335,9 @@ public class InventoryManagementApp {
         dialog.setVisible(true);
     }
 
+    
+    
+    
     private static void showSellProductDialog(JFrame parentFrame) {
         Font fonteGrande = new Font("Arial", Font.PLAIN, 18);
         JFrame dialog = new JFrame("Vender Produtos");
@@ -488,21 +483,29 @@ public class InventoryManagementApp {
                     List<ProductSummary> productsToSell = new ArrayList<>();
                     List<Integer> quantities = new ArrayList<>();
 
-                    for (Map.Entry<ProductSummary, Integer> entry : selectedProducts.entrySet()) {
-                        if (entry.getValue() > 0) {
-                            productsToSell.add(entry.getKey());
-                            quantities.add(entry.getValue());
+                    // Adiciona os produtos com quantidade selecionada ao inventário
+                    selectedProducts.forEach((productSummary, quantity) -> {
+                        if (quantity > 0) { // Apenas produtos com quantidade selecionada
+                            productsToSell.add(productSummary);
+                            quantities.add(quantity);
                         }
+                    });
+
+                    // Realiza a venda apenas se houver produtos válidos
+                    if (!productsToSell.isEmpty()) {
+                        inventory.sellProducts(productsToSell, quantities, customerName.isEmpty() ? null : customerName);
+                        saveInventory();
+
+                        JOptionPane.showMessageDialog(
+                            dialog, 
+                            new JLabel("<html><body style='font-size:20px;'>Compra finalizada com sucesso!</body></html>"),
+                            "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                        dialog.dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(dialog, 
+                            new JLabel("<html><body style='font-size:20px;'>Nenhum produto selecionado para venda.</body></html>"),
+                            "Aviso", JOptionPane.WARNING_MESSAGE);
                     }
-
-                    inventory.sellProducts(productsToSell, quantities, customerName.isEmpty() ? null : customerName);
-                    saveInventory();
-
-                    JOptionPane.showMessageDialog(
-                        dialog, 
-                        new JLabel("<html><body style='font-size:20px;'>Compra finalizada com sucesso!</body></html>"),
-                        "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                    dialog.dispose();
                 }
             } else {
                 JOptionPane.showMessageDialog(dialog, 
@@ -510,6 +513,7 @@ public class InventoryManagementApp {
                     "Aviso", JOptionPane.WARNING_MESSAGE);
             }
         });
+
 
         cancelButton.addActionListener(e -> dialog.dispose());
 
@@ -552,244 +556,272 @@ public class InventoryManagementApp {
     
     
     private static void showSalesDialog(JFrame parentFrame) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
-
-        // Define a cor de fundo
-        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
-
-        // Colunas e dados da tabela
+        Font fontGrande = new Font("Arial", Font.PLAIN, 18);
         String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
         List<Object[]> linhas = new ArrayList<>();
 
-        Map<String, List<Sale>> salesTransactions = inventory.getSalesTransactions();
-
-        // Ordenar as transações por data (mais recente para a mais antiga)
-        List<Map.Entry<String, List<Sale>>> sortedSalesTransactions = salesTransactions.entrySet()
-            .stream()
-            .sorted((entry1, entry2) -> {
-                LocalDateTime date1 = entry1.getValue().get(0).getDateTime();
-                LocalDateTime date2 = entry2.getValue().get(0).getDateTime();
-                return date2.compareTo(date1);
-            })
+        // Obtenha todas as vendas e ordene pela data (mais recente para mais antiga)
+        List<Sale> allSales = inventory.getSalesTransactions().values().stream()
+            .flatMap(List::stream)
+            .sorted((s1, s2) -> s2.getDateTime().compareTo(s1.getDateTime())) // Ordenação decrescente por data
             .toList();
 
-        for (Map.Entry<String, List<Sale>> entry : sortedSalesTransactions) {
-            List<Sale> sales = entry.getValue();
-            Sale firstSale = sales.get(0);
+        // Mapeia cliente e data para produtos e suas quantidades
+        Map<String, Map<String, Integer>> salesByClientAndDate = new LinkedHashMap<>();
+        Map<String, String> clientAndDateMap = new HashMap<>();
+        Map<String, Double> productPrices = new HashMap<>();
 
-            String customerName = firstSale.getCustomerName();
-            if (customerName == null || customerName.isEmpty()) {
-                customerName = "Cliente não registrado";
-            }
+        for (Sale sale : allSales) {
+            String cliente = sale.getCustomerName() != null ? sale.getCustomerName() : "Cliente não registrado";
+            String data = sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+            String produto = sale.getProduct().getName();
+            String key = cliente + "|" + data;
 
-            String formattedDate = firstSale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+            salesByClientAndDate.putIfAbsent(key, new LinkedHashMap<>());
+            salesByClientAndDate.get(key).put(produto, salesByClientAndDate.get(key).getOrDefault(produto, 0) + 1);
 
-            Map<String, Integer> productSummary = sales.stream()
-                .collect(Collectors.groupingBy(sale -> sale.getProduct().getName(), Collectors.summingInt(sale -> 1)));
-
-            boolean firstRow = true;
-            for (Map.Entry<String, Integer> productEntry : productSummary.entrySet()) {
-                String productName = productEntry.getKey();
-                int quantity = productEntry.getValue();
-                double unitPrice = sales.stream()
-                    .filter(sale -> sale.getProduct().getName().equals(productName))
-                    .findFirst()
-                    .get()
-                    .getProduct()
-                    .getPrice();
-
-                double total = quantity * unitPrice;
-
-                if (firstRow) {
-                    linhas.add(new Object[]{formattedDate, customerName, productName, quantity, String.format("%.2f", unitPrice), String.format("%.2f", total)});
-                    firstRow = false;
-                } else {
-                    linhas.add(new Object[]{"", "", productName, quantity, String.format("%.2f", unitPrice), String.format("%.2f", total)});
-                }
-            }
+            clientAndDateMap.put(key, cliente);
+            productPrices.put(produto, sale.getProduct().getPrice());
         }
 
-        // Conversão de dados para a JTable
-        Object[][] dados = linhas.toArray(new Object[0][]);
+        // Construir as linhas da tabela
+        salesByClientAndDate.forEach((key, products) -> {
+            String[] keyParts = key.split("\\|");
+            String cliente = keyParts[0];
+            String data = keyParts[1];
 
-        JTable tabela = new JTable(dados, colunas);
-        tabela.setFont(fonteGrande);
-        tabela.setRowHeight(30);
-        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 22));
-        tabela.getTableHeader().setBackground(backgroundColor);
-        tabela.getTableHeader().setForeground(java.awt.Color.WHITE);
-        tabela.setBackground(backgroundColor);
-        tabela.setForeground(java.awt.Color.WHITE);
+            boolean primeiraLinha = true;
+            for (Map.Entry<String, Integer> entry : products.entrySet()) {
+                String produto = entry.getKey();
+                int quantidade = entry.getValue();
+                double precoUnitario = productPrices.get(produto);
+                double total = quantidade * precoUnitario;
 
-        JScrollPane scrollPane = new JScrollPane(tabela);
-
-        JDialog dialog = new JDialog(parentFrame, "Histórico de Vendas", true);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        dialog.setSize(900, 600);
-        dialog.setResizable(true);
-        dialog.setLayout(new BorderLayout());
-        dialog.getContentPane().setBackground(backgroundColor);
-        dialog.add(scrollPane, BorderLayout.CENTER);
-
-        // Botão "OK" para fechar
-        JButton okButton = new JButton("OK");
-        okButton.setFont(fonteGrande);
-        okButton.addActionListener(e -> dialog.dispose());
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(backgroundColor);
-        buttonPanel.add(okButton);
-
-        dialog.add(buttonPanel, BorderLayout.SOUTH);
-        dialog.setVisible(true);
-    }
-    
-    private static void addConsultarVendasPorPeriodoButton(JFrame frame) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
-
-        JButton consultarVendasPorPeriodoButton = new JButton("Consultar Vendas Por Período");
-        consultarVendasPorPeriodoButton.setFont(fonteGrande);
-        consultarVendasPorPeriodoButton.addActionListener(e -> showSalesByPeriodDialog(frame));
-
-        JPanel mainPanel = (JPanel) frame.getContentPane().getComponent(0);
-        JPanel buttonPanel = (JPanel) mainPanel.getComponent(1);
-        buttonPanel.add(consultarVendasPorPeriodoButton);
-        buttonPanel.revalidate();
-        buttonPanel.repaint();
-    }
-
-    private static void showSalesByPeriodDialog(JFrame parentFrame) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
-        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
-
-        JDialog dialog = new JDialog(parentFrame, "Consultar Vendas Por Período", true);
-        dialog.setLayout(new BorderLayout());
-        dialog.setSize(500, 300);
-        dialog.setResizable(false);
-        dialog.getContentPane().setBackground(backgroundColor);
-
-        JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
-        inputPanel.setBackground(backgroundColor);
-
-        JLabel labelStartDate = new JLabel("Data Inicial (dd/mm/yyyy):");
-        labelStartDate.setFont(fonteGrande);
-        labelStartDate.setForeground(java.awt.Color.WHITE);
-        JTextField startDateField = new JTextField();
-        startDateField.setFont(fonteGrande);
-
-        JLabel labelEndDate = new JLabel("Data Final (dd/mm/yyyy):");
-        labelEndDate.setFont(fonteGrande);
-        labelEndDate.setForeground(java.awt.Color.WHITE);
-        JTextField endDateField = new JTextField();
-        endDateField.setFont(fonteGrande);
-
-        inputPanel.add(labelStartDate);
-        inputPanel.add(startDateField);
-        inputPanel.add(labelEndDate);
-        inputPanel.add(endDateField);
-
-        dialog.add(inputPanel, BorderLayout.CENTER);
-
-        JButton consultarButton = new JButton("Consultar");
-        consultarButton.setFont(fonteGrande);
-        consultarButton.addActionListener(e -> {
-            try {
-                LocalDate startDate = LocalDate.parse(startDateField.getText(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                LocalDate endDate = LocalDate.parse(endDateField.getText(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                LocalDate today = LocalDate.now();
-
-                if (startDate.isAfter(endDate)) {
-                    throw new IllegalArgumentException("A data inicial não pode ser maior que a data final.");
+                if (primeiraLinha) {
+                    linhas.add(new Object[]{data, cliente, produto, quantidade, String.format("%.2f", precoUnitario).replace('.', ','), String.format("%.2f", total).replace('.', ',')});
+                    primeiraLinha = false;
+                } else {
+                    linhas.add(new Object[]{"", "", produto, quantidade, String.format("%.2f", precoUnitario).replace('.', ','), String.format("%.2f", total).replace('.', ',')});
                 }
-
-                if (endDate.isAfter(today)) {
-                    throw new IllegalArgumentException("A data final não pode ser maior que a data de hoje.");
-                }
-
-                showFilteredSalesDialog(parentFrame, startDate, endDate);
-                dialog.dispose();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             }
         });
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(backgroundColor);
-        buttonPanel.add(consultarButton);
-
-        dialog.add(buttonPanel, BorderLayout.SOUTH);
-        dialog.setVisible(true);
-    }
-
-    private static void showFilteredSalesDialog(JFrame parentFrame, LocalDate startDate, LocalDate endDate) {
-        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
-        java.awt.Color backgroundColor = new java.awt.Color(138, 106, 45);
-
-        String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
-        List<Object[]> linhas = new ArrayList<>();
-
-        Map<String, List<Sale>> salesTransactions = inventory.getSalesTransactions();
-        double totalSales = 0.0;
-
-        for (List<Sale> sales : salesTransactions.values()) {
-            String lastCustomerName = null;
-            for (Sale sale : sales) {
-                LocalDate saleDate = sale.getDateTime().toLocalDate();
-                if (!saleDate.isBefore(startDate) && !saleDate.isAfter(endDate)) {
-                    String customerName = sale.getCustomerName();
-                    if (customerName == null || customerName.isEmpty()) {
-                        customerName = "Cliente não registrado";
-                    }
-                    String formattedDate = sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
-
-                    double unitPrice = sale.getProduct().getPrice();
-                    double total = unitPrice;
-                    totalSales += total;
-
-                    linhas.add(new Object[]{
-                        formattedDate,
-                        customerName.equals(lastCustomerName) ? "" : customerName,
-                        sale.getProduct().getName(),
-                        1,
-                        String.format("%.2f", unitPrice),
-                        String.format("%.2f", total)
-                    });
-
-                    lastCustomerName = customerName;
-                }
-            }
-        }
-
         Object[][] dados = linhas.toArray(new Object[0][]);
-
         JTable tabela = new JTable(dados, colunas);
-        tabela.setFont(fonteGrande);
-        tabela.setRowHeight(30);
-        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 22));
-        tabela.getTableHeader().setBackground(backgroundColor);
-        tabela.getTableHeader().setForeground(java.awt.Color.WHITE);
-        tabela.setBackground(backgroundColor);
-        tabela.setForeground(java.awt.Color.WHITE);
+        tabela.setFont(fontGrande);
+        tabela.setRowHeight(25);
+        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 20));
 
         JScrollPane scrollPane = new JScrollPane(tabela);
-
-        JDialog dialog = new JDialog(parentFrame, "Vendas Por Período", true);
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        JFrame dialog = new JFrame("Histórico de Vendas");
+        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         dialog.setSize(900, 600);
         dialog.setResizable(true);
-        dialog.setLayout(new BorderLayout());
-        dialog.getContentPane().setBackground(backgroundColor);
-        dialog.add(scrollPane, BorderLayout.CENTER);
+        dialog.add(scrollPane);
+        dialog.setVisible(true);
+    }
+    
+    
 
-        JLabel totalLabel = new JLabel("Total de vendas: R$ " + String.format("%.2f", totalSales));
-        totalLabel.setFont(fonteGrande);
-        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        totalLabel.setForeground(java.awt.Color.WHITE);
 
-        dialog.add(totalLabel, BorderLayout.SOUTH);
+    private static void showSalesByPeriodInputDialog(JFrame parentFrame) {
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 18);
+
+        JDialog dialog = new JDialog(parentFrame, "Selecionar Período", true);
+        dialog.setSize(400, 300);
+        dialog.setLayout(new GridLayout(3, 2, 10, 10));
+
+        JLabel startDateLabel = new JLabel("Data Inicial (dd/MM/yyyy):");
+        startDateLabel.setFont(fonteGrande);
+        JTextField startDateField = new JTextField();
+        startDateField.setFont(fonteGrande);
+
+        JLabel endDateLabel = new JLabel("Data Final (dd/MM/yyyy):");
+        endDateLabel.setFont(fonteGrande);
+        JTextField endDateField = new JTextField();
+        endDateField.setFont(fonteGrande);
+
+        JButton okButton = new JButton("OK");
+        okButton.setFont(fonteGrande);
+
+        JButton cancelButton = new JButton("Cancelar");
+        cancelButton.setFont(fonteGrande);
+
+        dialog.add(startDateLabel);
+        dialog.add(startDateField);
+        dialog.add(endDateLabel);
+        dialog.add(endDateField);
+        dialog.add(okButton);
+        dialog.add(cancelButton);
+
+        okButton.addActionListener(e -> {
+            try {
+                String startDateText = startDateField.getText().trim();
+                String endDateText = endDateField.getText().trim();
+
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                LocalDateTime startDate = LocalDate.parse(startDateText, formatter).atStartOfDay();
+                LocalDateTime endDate = LocalDate.parse(endDateText, formatter).atTime(23, 59, 59);
+
+                dialog.dispose();
+
+                // Chama o método para exibir as vendas por período
+                showSalesByPeriodDialog(parentFrame, startDate, endDate);
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, "Datas inválidas! Por favor, insira no formato dd/MM/yyyy.", "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
         dialog.setVisible(true);
     }
 
 
+
+    private static void showSalesByPeriodDialog(JFrame parentFrame, LocalDateTime startDate, LocalDateTime endDate) {
+        Font fontGrande = new Font("Arial", Font.PLAIN, 18);
+        String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
+        
+        // Filtra as vendas por período
+        List<Sale> filteredSales = inventory.getSalesTransactions().values().stream()
+            .flatMap(List::stream)
+            .filter(sale -> !sale.getDateTime().isBefore(startDate) && !sale.getDateTime().isAfter(endDate)) // Filtra pelo período
+            .collect(Collectors.toList());
+
+        // Prepara os dados para a tabela
+        Object[][] dados = filteredSales.stream()
+            .map(sale -> new Object[]{
+                sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                sale.getCustomerName(),
+                sale.getProduct().getName(),
+                sale.getQuantity(),
+                String.format("%.2f", sale.getProduct().getPrice()).replace('.', ','),
+                String.format("%.2f", sale.getQuantity() * sale.getProduct().getPrice()).replace('.', ',')
+            })
+            .toArray(Object[][]::new);
+
+        JTable tabela = new JTable(dados, colunas);
+        tabela.setFont(fontGrande);
+        tabela.setRowHeight(25);
+        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 20));
+
+        JScrollPane scrollPane = new JScrollPane(tabela);
+        JFrame dialog = new JFrame("Vendas Por Período");
+        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        dialog.setSize(900, 600);
+        dialog.add(scrollPane);
+
+        // Exibe o total geral no rodapé
+        double totalVendas = filteredSales.stream()
+            .mapToDouble(sale -> sale.getQuantity() * sale.getProduct().getPrice())
+            .sum();
+
+        JLabel totalLabel = new JLabel(String.format("Total de vendas: R$ %.2f", totalVendas).replace('.', ','));
+        totalLabel.setFont(fontGrande);
+        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        dialog.add(totalLabel, BorderLayout.SOUTH);
+
+        dialog.setVisible(true);
+    }
+
+
+
+
+    private static void showEditProductDialog(JFrame parentFrame) {
+        Font fonteGrande = new Font("Arial", Font.PLAIN, 20);
+
+        JFrame dialog = new JFrame("Alterar Produtos");
+        dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        dialog.setSize(800, 600);
+        dialog.setResizable(true);
+
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+        JComboBox<String> productSelector = new JComboBox<>(
+            inventory.getProductSummary().keySet().toArray(new String[0])
+        );
+        productSelector.setFont(fonteGrande);
+
+        JTextField nameField = new JTextField();
+        nameField.setFont(fonteGrande);
+
+        JTextField descriptionField = new JTextField();
+        descriptionField.setFont(fonteGrande);
+
+        JTextField priceField = new JTextField();
+        priceField.setFont(fonteGrande);
+
+        JLabel nameLabel = new JLabel("Novo Nome:");
+        nameLabel.setFont(fonteGrande);
+
+        JLabel descriptionLabel = new JLabel("Nova Descrição:");
+        descriptionLabel.setFont(fonteGrande);
+
+        JLabel priceLabel = new JLabel("Novo Preço:");
+        priceLabel.setFont(fonteGrande);
+
+        mainPanel.add(new JLabel("Selecione o Produto:"));
+        mainPanel.add(productSelector);
+        mainPanel.add(nameLabel);
+        mainPanel.add(nameField);
+        mainPanel.add(descriptionLabel);
+        mainPanel.add(descriptionField);
+        mainPanel.add(priceLabel);
+        mainPanel.add(priceField);
+
+        JButton saveButton = new JButton("Salvar Alterações");
+        saveButton.setFont(fonteGrande);
+
+        JButton cancelButton = new JButton("Cancelar");
+        cancelButton.setFont(fonteGrande);
+
+        saveButton.addActionListener(e -> {
+            try {
+                String selectedProductKey = (String) productSelector.getSelectedItem();
+                ProductSummary summary = inventory.getProductSummary().get(selectedProductKey);
+
+                if (summary == null) {
+                    JOptionPane.showMessageDialog(dialog, "Produto não encontrado!", "Erro", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                String newName = nameField.getText().trim();
+                String newDescription = descriptionField.getText().trim();
+                double newPrice = Double.parseDouble(priceField.getText().trim().replace(",", "."));
+
+                if (newName.isEmpty() || newDescription.isEmpty() || newPrice <= 0) {
+                    JOptionPane.showMessageDialog(dialog, "Preencha todos os campos corretamente!", "Erro", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Atualiza os atributos do produto
+                inventory.updateProductAttributes(selectedProductKey, newName, newDescription, newPrice);
+
+                JOptionPane.showMessageDialog(dialog, "Produto atualizado com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
+
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Preço inválido!", "Erro", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+
+        dialog.add(mainPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.setVisible(true);
+    }
 
 
 
