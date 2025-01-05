@@ -51,6 +51,9 @@ public class InventoryManagementApp {
         SwingUtilities.invokeLater(InventoryManagementApp::createAndShowGUI);
     }   
     
+    
+    
+    
 
     private static void saveInventory() {
         try {
@@ -80,6 +83,8 @@ public class InventoryManagementApp {
 
     
     
+    
+    
     private static void loadInventory() {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(INVENTORY_FILE))) {
             inventory = (Inventory) ois.readObject();
@@ -91,6 +96,8 @@ public class InventoryManagementApp {
         }
     }
 
+    
+    
     
     
     private static void createAndShowGUI() {
@@ -161,7 +168,6 @@ public class InventoryManagementApp {
 
         frame.setVisible(true);
     }
-
 
 
 
@@ -258,8 +264,17 @@ public class InventoryManagementApp {
                 inventory.addProduct(name, description, price, quantity);
                 saveInventory();
 
-                JOptionPane.showMessageDialog(dialog, "Produto adicionado com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
+                // Personalizando o diálogo de sucesso
+                JLabel successLabel = new JLabel("Produto adicionado com sucesso!", SwingConstants.CENTER);
+                successLabel.setFont(new Font("Arial", Font.BOLD, 18)); // Aumenta o tamanho do texto
+
+                JOptionPane.showMessageDialog(dialog, successLabel, "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+
+                // Limpa os campos para adicionar um novo produto
+                nameField.setText("");
+                descriptionField.setText("");
+                priceField.setText("");
+                quantityField.setText("");
 
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dialog, "Por favor, insira valores válidos para preço e quantidade.", "Erro", JOptionPane.ERROR_MESSAGE);
@@ -274,9 +289,6 @@ public class InventoryManagementApp {
     }
 
 
-    
-
-    
 
 
 
@@ -335,6 +347,7 @@ public class InventoryManagementApp {
         dialog.setVisible(true);
     }
 
+    
     
     
     
@@ -514,7 +527,6 @@ public class InventoryManagementApp {
             }
         });
 
-
         cancelButton.addActionListener(e -> dialog.dispose());
 
         buttonPanel.add(okButton);
@@ -532,6 +544,7 @@ public class InventoryManagementApp {
 
     
     
+    
 
     private static void updateTotalLabel(Map<ProductSummary, Integer> selectedProducts, JLabel totalLabel) {
         double total = selectedProducts.entrySet().stream()
@@ -540,6 +553,11 @@ public class InventoryManagementApp {
         totalLabel.setText("Total da compra: R$ " + String.format("%.2f", total));
     }
 
+    
+    
+    
+    
+    
     private static JLabel createProductInfoLabel(String text, Font font, java.awt.Color backgroundColor) {
         JLabel label = new JLabel(text);
         label.setFont(font);
@@ -549,64 +567,21 @@ public class InventoryManagementApp {
         return label;
     }
 
-
-
-
+    
 
     
     
     private static void showSalesDialog(JFrame parentFrame) {
         Font fontGrande = new Font("Arial", Font.PLAIN, 18);
         String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
-        List<Object[]> linhas = new ArrayList<>();
 
-        // Obtenha todas as vendas e ordene pela data (mais recente para mais antiga)
+        // Obtém todas as vendas e prepara os dados agrupados e ordenados
         List<Sale> allSales = inventory.getSalesTransactions().values().stream()
             .flatMap(List::stream)
-            .sorted((s1, s2) -> s2.getDateTime().compareTo(s1.getDateTime())) // Ordenação decrescente por data
-            .toList();
+            .collect(Collectors.toList());
 
-        // Mapeia cliente e data para produtos e suas quantidades
-        Map<String, Map<String, Integer>> salesByClientAndDate = new LinkedHashMap<>();
-        Map<String, String> clientAndDateMap = new HashMap<>();
-        Map<String, Double> productPrices = new HashMap<>();
+        Object[][] dados = prepararDadosParaTabela(allSales);
 
-        for (Sale sale : allSales) {
-            String cliente = sale.getCustomerName() != null ? sale.getCustomerName() : "Cliente não registrado";
-            String data = sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
-            String produto = sale.getProduct().getName();
-            String key = cliente + "|" + data;
-
-            salesByClientAndDate.putIfAbsent(key, new LinkedHashMap<>());
-            salesByClientAndDate.get(key).put(produto, salesByClientAndDate.get(key).getOrDefault(produto, 0) + 1);
-
-            clientAndDateMap.put(key, cliente);
-            productPrices.put(produto, sale.getProduct().getPrice());
-        }
-
-        // Construir as linhas da tabela
-        salesByClientAndDate.forEach((key, products) -> {
-            String[] keyParts = key.split("\\|");
-            String cliente = keyParts[0];
-            String data = keyParts[1];
-
-            boolean primeiraLinha = true;
-            for (Map.Entry<String, Integer> entry : products.entrySet()) {
-                String produto = entry.getKey();
-                int quantidade = entry.getValue();
-                double precoUnitario = productPrices.get(produto);
-                double total = quantidade * precoUnitario;
-
-                if (primeiraLinha) {
-                    linhas.add(new Object[]{data, cliente, produto, quantidade, String.format("%.2f", precoUnitario).replace('.', ','), String.format("%.2f", total).replace('.', ',')});
-                    primeiraLinha = false;
-                } else {
-                    linhas.add(new Object[]{"", "", produto, quantidade, String.format("%.2f", precoUnitario).replace('.', ','), String.format("%.2f", total).replace('.', ',')});
-                }
-            }
-        });
-
-        Object[][] dados = linhas.toArray(new Object[0][]);
         JTable tabela = new JTable(dados, colunas);
         tabela.setFont(fontGrande);
         tabela.setRowHeight(25);
@@ -616,13 +591,25 @@ public class InventoryManagementApp {
         JFrame dialog = new JFrame("Histórico de Vendas");
         dialog.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         dialog.setSize(900, 600);
-        dialog.setResizable(true);
         dialog.add(scrollPane);
+
+        // Calcula o total geral e exibe no rodapé
+        double totalVendas = allSales.stream()
+            .mapToDouble(sale -> sale.getQuantity() * sale.getProduct().getPrice())
+            .sum();
+
+        JLabel totalLabel = new JLabel(String.format("Total de vendas: R$ %.2f", totalVendas).replace('.', ','));
+        totalLabel.setFont(fontGrande);
+        totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        dialog.add(totalLabel, BorderLayout.SOUTH);
+
         dialog.setVisible(true);
     }
-    
-    
 
+    
+    
+    
 
     private static void showSalesByPeriodInputDialog(JFrame parentFrame) {
         Font fonteGrande = new Font("Arial", Font.PLAIN, 18);
@@ -678,29 +665,22 @@ public class InventoryManagementApp {
         dialog.setVisible(true);
     }
 
+    
+    
 
 
     private static void showSalesByPeriodDialog(JFrame parentFrame, LocalDateTime startDate, LocalDateTime endDate) {
         Font fontGrande = new Font("Arial", Font.PLAIN, 18);
         String[] colunas = {"Data", "Cliente", "Produto", "Quantidade", "Valor Unitário", "Total"};
-        
+
         // Filtra as vendas por período
         List<Sale> filteredSales = inventory.getSalesTransactions().values().stream()
             .flatMap(List::stream)
             .filter(sale -> !sale.getDateTime().isBefore(startDate) && !sale.getDateTime().isAfter(endDate)) // Filtra pelo período
             .collect(Collectors.toList());
 
-        // Prepara os dados para a tabela
-        Object[][] dados = filteredSales.stream()
-            .map(sale -> new Object[]{
-                sale.getDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
-                sale.getCustomerName(),
-                sale.getProduct().getName(),
-                sale.getQuantity(),
-                String.format("%.2f", sale.getProduct().getPrice()).replace('.', ','),
-                String.format("%.2f", sale.getQuantity() * sale.getProduct().getPrice()).replace('.', ',')
-            })
-            .toArray(Object[][]::new);
+        // Prepara os dados agrupados para a tabela
+        Object[][] dados = prepararDadosParaTabela(filteredSales);
 
         JTable tabela = new JTable(dados, colunas);
         tabela.setFont(fontGrande);
@@ -726,6 +706,7 @@ public class InventoryManagementApp {
 
         dialog.setVisible(true);
     }
+
 
 
 
@@ -822,8 +803,73 @@ public class InventoryManagementApp {
 
         dialog.setVisible(true);
     }
+    
+    
+    
+    
+    private static Object[][] prepararDadosParaTabela(List<Sale> sales) {
+        List<Object[]> tabelaAgrupada = new ArrayList<>();
 
+        // Agrupa as vendas por ID de transação
+        Map<String, List<Sale>> vendasAgrupadas = sales.stream()
+            .collect(Collectors.groupingBy(Sale::getTransactionId));
+
+        // Ordena as vendas agrupadas por data/hora (mais recente primeiro)
+        List<Map.Entry<String, List<Sale>>> vendasOrdenadas = vendasAgrupadas.entrySet().stream()
+            .sorted((entry1, entry2) -> {
+                LocalDateTime data1 = entry1.getValue().get(0).getDateTime();
+                LocalDateTime data2 = entry2.getValue().get(0).getDateTime();
+                return data2.compareTo(data1); // Ordem decrescente
+            })
+            .toList();
+
+        // Processa cada transação
+        vendasOrdenadas.forEach(entry -> {
+            List<Sale> vendas = entry.getValue();
+            String cliente = vendas.get(0).getCustomerName();
+            LocalDateTime data = vendas.get(0).getDateTime();
+
+            Map<String, Integer> produtosAgrupados = new LinkedHashMap<>();
+            double totalCompra = 0.0;
+
+            // Agrupa os produtos e calcula o total da compra
+            for (Sale venda : vendas) {
+                String produtoKey = venda.getProduct().getName();
+                produtosAgrupados.put(produtoKey,
+                    produtosAgrupados.getOrDefault(produtoKey, 0) + venda.getQuantity());
+
+                totalCompra += venda.getProduct().getPrice() * venda.getQuantity();
+            }
+
+            // Adiciona os dados na tabela para cada produto agrupado
+            boolean primeiroProduto = true;
+            for (Map.Entry<String, Integer> produto : produtosAgrupados.entrySet()) {
+                String nomeProduto = produto.getKey();
+                int quantidade = produto.getValue();
+                double precoUnitario = vendas.stream()
+                    .filter(v -> v.getProduct().getName().equals(nomeProduto))
+                    .findFirst().get().getProduct().getPrice();
+
+                tabelaAgrupada.add(new Object[]{
+                    primeiroProduto ? data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "",
+                    primeiroProduto ? cliente : "",
+                    nomeProduto,
+                    quantidade,
+                    String.format("%.2f", precoUnitario).replace('.', ','),
+                    String.format("%.2f", quantidade * precoUnitario).replace('.', ',')
+                });
+
+                primeiroProduto = false;
+            }
+
+            // Adiciona o total da compra como linha separada
+            tabelaAgrupada.add(new Object[]{
+                "", "", "Total da Compra", "", "", String.format("%.2f", totalCompra).replace('.', ',')
+            });
+        });
+
+        return tabelaAgrupada.toArray(new Object[0][]);
+    }
 
 
 }
-

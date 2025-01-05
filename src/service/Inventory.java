@@ -48,8 +48,7 @@ public class Inventory implements Serializable {
 
     // Realiza a venda de produtos
     public void sellProducts(List<ProductSummary> productSummaries, List<Integer> quantities, String customerName) {
-        System.out.println("sellProducts chamado com " + productSummaries.size() + " produtos.");
-
+        
         if (productSummaries.size() != quantities.size()) {
             throw new IllegalArgumentException("Produtos e quantidades não correspondem.");
         }
@@ -67,8 +66,7 @@ public class Inventory implements Serializable {
 
             int count = 0;
             List<Product> toRemove = new ArrayList<>();
-
-            System.out.println("Tentando vender " + quantity + " unidades de " + summary.getName());
+           
             for (Product product : products) {
                 boolean matches = product.getName().trim().equalsIgnoreCase(summary.getName().trim()) &&
                                   product.getDescription().trim().equalsIgnoreCase(summary.getDescription().trim()) &&
@@ -82,20 +80,14 @@ public class Inventory implements Serializable {
             }
 
             if (count < quantity) {
-                System.out.println("Produtos encontrados: " + count + ". Estoque insuficiente ou dados não correspondem.");
                 throw new IllegalStateException("Não foi possível encontrar todos os produtos para venda: " + summary.getName());
             }
 
             products.removeAll(toRemove); // Remove os produtos vendidos do estoque
             summary.decrementQuantity(count); // Atualiza a quantidade no resumo do produto
-            System.out.println("Quantidade vendida: " + count + ". Estoque restante: " + summary.getQuantity());
+            
         }
-
-        System.out.println("Vendas totais após venda: " + sales.size());
     }
-
-
-
 
     public Map<String, ProductSummary> getProductSummary() {
         return productSummaries.entrySet().stream()
@@ -113,7 +105,6 @@ public class Inventory implements Serializable {
 
     // Retorna as transações de vendas agrupadas por ID da transação
     public Map<String, List<Sale>> getSalesTransactions() {
-        System.out.println("Chamando getSalesTransactions, vendas registradas: " + sales.size());
         return sales.stream().collect(Collectors.groupingBy(Sale::getTransactionId));
     }
     
@@ -144,7 +135,4 @@ public class Inventory implements Serializable {
             }
         }
     }
-
-
-
 }
